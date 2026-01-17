@@ -1,0 +1,3 @@
+what is an array
+explain linked list in detail
+explain recursion

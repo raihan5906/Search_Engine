@@ -1,0 +1,24 @@
+# Use a Python base image
+FROM python:3.9-slim
+
+# Install GCC to compile your C Trie logic
+RUN apt-get update && apt-get install -y gcc && rm -rf /var/lib/apt/lists/*
+
+# Set the working directory
+WORKDIR /app
+
+# Copy all project files into the container
+COPY . .
+
+# Compile the C binary during the build process
+RUN gcc dsa_logic.c -o dsa_logic
+
+# Install Python requirements
+RUN pip install requests
+
+# Cloud providers assign a port dynamically via environment variables
+ENV PORT=8090
+EXPOSE 8090
+
+# Command to run your server
+CMD ["python", "server.py"]
