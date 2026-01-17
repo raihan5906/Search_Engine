@@ -1,5 +1,7 @@
 import http.server, socketserver, requests, os, json, subprocess, time
 from urllib.parse import urlparse, parse_qs
+import os
+import subprocess
 
 PORT = 8090
 MODEL = "gemini-2.5-flash-lite"
@@ -19,21 +21,26 @@ class GeminiHandler(http.server.SimpleHTTPRequestHandler):
             except: self._send_json([])
             return
 
-        elif path == '/search':
-            # LEARNING STEP: Tell C to remember this search
-            subprocess.Popen(['./dsa_logic', '--learn', query])
-            
-            api_key = os.environ.get('GEMINI_API_KEY')
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/{MODEL}:generateContent?key={api_key}"
-            payload = {"contents": [{"parts": [{"text": query}]}]}
-            
+        elif path == '/suggest':
             try:
-                response = requests.post(url, json=payload)
-                answer = response.json()['candidates'][0]['content']['parts'][0]['text']
-            except: answer = "API Error or Quota Reached."
-            
-            self._send_json({"query": query, "answer": answer})
-            return
+                # Get the absolute directory of server.py
+                base_dir = os.path.dirname(os.path.abspath(__file__))
+                
+                # Build the correct path for the C binary
+                # Linux (Render) uses 'dsa_logic', Windows uses 'dsa_logic.exe'
+                binary_name = 'dsa_logic' if os.name != 'nt' else 'dsa_logic.exe'
+                executable_path = os.path.join(base_dir, binary_name)
+
+                # Call the C executable
+                proc = subprocess.Popen([executable_path, query], 
+                                        stdout=subprocess.PIPE, 
+                                        text=True)
+                out, _ = proc.communicate()
+                suggestions = [s.strip() for s in out.split(',') if s.strip()]
+                self._send_json(suggestions[:5])
+            except Exception as e:
+                print(f"Subprocess Error: {e}") # This will show in Render logs
+                self._send_json([])
         
         else: return super().do_GET()
 
